@@ -2,60 +2,47 @@
 
 const fs = require('fs')
 const path = require('path')
-const fetch = require('node-fetch')
 const bbox = require('@turf/bbox')
 const svgify = require('geojson-svgify')
-const simplify = require('@turf/simplify')
-const h = require('virtual-hyperscript-svg')
 const toJSON = require('vdom-as-json/toJson')
 
 const projection = require('./projection')
 
-
-
 const write = (filename, data) => {
-	filename = path.join(__dirname, filename)
-	data = JSON.stringify(data)
-	return new Promise((yay, nay) => {
-		fs.writeFile(filename, data, (err) => {
-			if (err) nay(err)
-			else yay()
-		})
-	})
+  filename = path.join(__dirname, filename)
+  data = JSON.stringify(data)
+  return new Promise((resolve, reject) => {
+    fs.writeFile(filename, data, (err) => {
+      if (err) reject(err)
+      else resolve()
+    })
+  })
 }
 
+fs.readFile('./110m_land.json', function (err, res) {
+  if (err) {
+    return
+  }
+  res = JSON.parse(res)
 
+  const box = bbox(res)
+  const west = box[0]
+  const south = -57
+  const east = box[2]
+  const north = 77.5
 
-fetch(`https://raw.githubusercontent.com/\
-johan/world.geo.json/34c96bb/countries.geo.json`)
-.then((res) => res.json())
-.then((res) => {
+  // const world = simplify(res, .17, true)
+  const polylines = svgify(res, {
+    projection
+  })
 
-	const box = bbox(res)
-	const west = box[0]
-	const south = -57
-	const east = box[2]
-	const north = 77.5
+  const [left, top] = projection([west, north])
+  const [right, bottom] = projection([east, south])
+  const width = right - left
+  const height = bottom - top
 
-	const world = simplify(res, .17, true)
-	const polylines = svgify(world, {
-		projection,
-		computeProps: () => ({className: 'country'})
-	})
+  const data = toJSON(polylines)
+  const meta = {left, top, right, bottom, width, height}
 
-	const [left, top] = projection([west, north])
-	const [right, bottom] = projection([east, south])
-	const width = right - left
-	const height = bottom - top
-	const ratio = width / height
-
-	const data = toJSON(polylines)
-	const meta = {left, top, right, bottom, width, height}
-
-	return Promise.all([write('data.json', data), write('meta.json', meta)])
-
-})
-.catch((err) => {
-	console.error(err.stack)
-	process.exit(1)
+  return Promise.all([write('data.json', data), write('meta.json', meta)])
 })
