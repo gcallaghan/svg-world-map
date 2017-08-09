@@ -1,10 +1,10 @@
 'use strict'
 
-const mercator = require('projections/mercator')
+const miller = require('projections/miller')
 const _ = require('lodash')
 
 const projection = ([lon, lat]) => {
-  let {x, y} = mercator({lon, lat}, {latLimit: 80})
+  let {x, y} = miller({lon, lat})
   x = _.clamp(x, -180, 180)
   y = _.clamp(y, -90, 90)
 
